@@ -37,6 +37,9 @@
 #include <stdbool.h>
 
 typedef FTM_Type HAL_Encoder_T;
+typedef FTM_Type HAL_Encoder_Pin_T;
+typedef FTM_Type HAL_Encoder_Timer_T;
+typedef FTM_Type HAL_Encoder_Counter_T;
 
 static inline bool HAL_Encoder_ReadTimerCounterOverflow(const HAL_Encoder_T * p_encoder) { return p_encoder->SC & FTM_SC_TOF_MASK; }
 /* Clear interrupt */
@@ -46,8 +49,20 @@ static inline uint32_t HAL_Encoder_ReadTimerCounter(const HAL_Encoder_T * p_enco
 static inline void HAL_Encoder_WriteTimerCounter(HAL_Encoder_T * p_encoder, uint32_t count) { p_encoder->CNT = FTM_CNT_COUNT(count); }
 static inline void HAL_Encoder_WriteTimerCounterMax(HAL_Encoder_T * p_encoder, uint32_t max) { p_encoder->MOD = FTM_MOD_MOD(max); }
 
-#ifndef CONFIG_ENCODER_HAL_CLOCK_SOURCE_FREQ
-#define CONFIG_ENCODER_HAL_CLOCK_SOURCE_FREQ 80000000UL
+static inline uint32_t HAL_Encoder_ReadCounter(const HAL_Encoder_Counter_T * p_encoder) { (void)p_encoder; }
+static inline void HAL_Encoder_WriteCounter(HAL_Encoder_Counter_T * p_encoder, uint32_t count) { (void)p_encoder; }
+static inline void HAL_Encoder_WriteCounterMax(HAL_Encoder_Counter_T * p_encoder, uint32_t max) { (void)p_encoder; }
+static inline void HAL_Encoder_ClearCounterOverflow(HAL_Encoder_Counter_T * p_encoder) { (void)p_encoder; }
+static inline bool HAL_Encoder_ReadTimerOverflow(const HAL_Encoder_Timer_T * p_encoder) { return p_encoder->SC & FTM_SC_TOF_MASK; }
+static inline void HAL_Encoder_ClearTimerOverflow(HAL_Encoder_Timer_T * p_encoder) { p_encoder->SC &= ~FTM_SC_TOF_MASK; (void)p_encoder->SC; }
+static inline uint32_t HAL_Encoder_ReadTimer(const HAL_Encoder_Timer_T * p_encoder) { return p_encoder->CNT; }
+static inline void HAL_Encoder_WriteTimer(HAL_Encoder_Timer_T * p_encoder, uint32_t count) { p_encoder->CNT = FTM_CNT_COUNT(count); }
+static inline void HAL_Encoder_ClearPinInterrupt(HAL_Encoder_Pin_T * p_encoder, uint32_t phaseId) { p_encoder->CONTROLS[phaseId].CnSC &= ~FTM_CnSC_CHF_MASK; }
+static inline bool HAL_Encoder_ReadPinInterrupt(const HAL_Encoder_Pin_T * p_encoder, uint32_t phaseId) { return (p_encoder->CONTROLS[phaseId].CnSC & FTM_CnSC_CHF_MASK); }
+static inline void HAL_Encoder_Enable(HAL_Encoder_Timer_T * p_encoder) { p_encoder->SC |= FTM_SC_CLKS(0b01U); }
+
+#ifndef HAL_ENCODER_CLOCK_SOURCE_FREQ
+#define HAL_ENCODER_CLOCK_SOURCE_FREQ 80000000UL
 #endif
 
 /*!
@@ -63,15 +78,16 @@ static inline void HAL_Encoder_WriteTimerCounterMax(HAL_Encoder_T * p_encoder, u
     110 Divide by 64
     111 Divide by 128
 */
-static inline uint32_t HAL_Encoder_ConfigTimerCounterFreq(HAL_Encoder_T * p_encoder, uint32_t freq)
+
+static inline uint32_t HAL_Encoder_InitTimerFreq(HAL_Encoder_Timer_T * p_encoder, uint32_t freq)
 {
-    uint8_t preScalerValue = CONFIG_ENCODER_HAL_CLOCK_SOURCE_FREQ / freq;
+    uint32_t preScalerValue = HAL_ENCODER_CLOCK_SOURCE_FREQ / freq;
     uint8_t preScaler = 0U;
-
-    while(preScalerValue > 1U) { preScalerValue = preScalerValue >> 1U; preScaler++; } /* log base2 */
-    p_encoder->SC = (p_encoder->SC & ~FTM_SC_CLKS_MASK) | FTM_SC_PS(preScaler);
-
-    return CONFIG_ENCODER_HAL_CLOCK_SOURCE_FREQ / ((uint32_t)1UL << preScaler);
+    while ((preScalerValue >> preScaler) > 1U) { preScaler++; } /* log2 */
+    p_encoder->SC &= ~FTM_SC_CLKS_MASK;
+    p_encoder->SC = (p_encoder->SC & ~FTM_SC_PS_MASK) | FTM_SC_PS(preScaler);
+    p_encoder->SC |= FTM_SC_CLKS(0b01U);
+    return HAL_ENCODER_CLOCK_SOURCE_FREQ / ((uint32_t)1UL << preScaler);
 }
 
 /*
@@ -104,5 +120,21 @@ static inline void HAL_Encoder_InitCounter(HAL_Encoder_T * p_encoder)
 }
 
 static inline void HAL_Encoder_Init(HAL_Encoder_T * p_encoder) { (void)p_encoder; }
+
+static inline void HAL_Encoder_InitTimer(HAL_Encoder_Timer_T * p_encoder)
+{
+    p_encoder->MOD = FTM_MOD_MOD(0xFFFFU);
+    p_encoder->SC |= FTM_SC_CLKS(0b01U);
+    // HAL_Encoder_InitTimerFreq(p_encoder, HAL_ENCODER_TIMER_FREQ);
+}
+
+static inline void HAL_Encoder_EnablePinInterrupt(HAL_Encoder_Pin_T * p_encoder, uint32_t phaseId) { p_encoder->CONTROLS[phaseId].CnSC |= FTM_CnSC_CHIE_MASK; }
+static inline void HAL_Encoder_DisablePinInterrupt(HAL_Encoder_Pin_T * p_encoder, uint32_t phaseId) { p_encoder->CONTROLS[phaseId].CnSC &= ~FTM_CnSC_CHIE_MASK; }
+static inline void HAL_Encoder_InitPinInterruptDualEdge(HAL_Encoder_Pin_T * p_encoder, uint32_t phaseId) { p_encoder->CONTROLS[phaseId].CnSC = FTM_CnSC_CHIE_MASK | FTM_CnSC_ELSA_MASK | FTM_CnSC_ELSB_MASK; }
+static inline void HAL_Encoder_InitPinInterruptFallingEdge(HAL_Encoder_Pin_T * p_encoder, uint32_t phaseId) { p_encoder->CONTROLS[phaseId].CnSC = FTM_CnSC_CHIE_MASK | FTM_CnSC_ELSB_MASK; }
+static inline void HAL_Encoder_InitPinInterruptRisingEdge(HAL_Encoder_Pin_T * p_encoder, uint32_t phaseId) { p_encoder->CONTROLS[phaseId].CnSC = FTM_CnSC_CHIE_MASK | FTM_CnSC_ELSA_MASK; }
+static inline bool HAL_Encoder_ReadCounterDirection(const HAL_Encoder_Counter_T * p_encoder) { (void)p_encoder; return (0U); }
+static inline bool HAL_Encoder_ReadCounterOverflowIncrement(const HAL_Encoder_Counter_T * p_encoder) { (void)p_encoder; return (0U); }
+static inline bool HAL_Encoder_ReadCounterOverflowDecrement(const HAL_Encoder_Counter_T * p_encoder) { (void)p_encoder; return (0U); }
 
 #endif

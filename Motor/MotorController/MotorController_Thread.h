@@ -73,15 +73,8 @@ static inline void _MotorController_ProcAnalogUser(const MotorController_T * p_c
     //     default: break;
     // }
 
-    // switch (p_mc->StateMachine.State)
-    // {
-    //     case MOTOR_CONTROLLER_STATE_INIT:   break;
-    //     case MOTOR_CONTROLLER_STATE_MAIN:    break;
-    //     case MOTOR_CONTROLLER_STATE_LOCK:   break;
-    //     case MOTOR_CONTROLLER_STATE_FAULT:  break;
-    //     default: break;
-    // }
 
+    // if drive mode
     // switch on app macchine
     switch (MotAnalogUser_GetDirectionEdge(&p_context->ANALOG_USER))
     {
@@ -94,8 +87,19 @@ static inline void _MotorController_ProcAnalogUser(const MotorController_T * p_c
     MotDrive_User_SetThrottle(p_context->MOT_DRIVE.P_ACTIVE, MotAnalogUser_GetThrottle(&p_context->ANALOG_USER));
     MotDrive_User_SetBrake(p_context->MOT_DRIVE.P_ACTIVE, MotAnalogUser_GetBrake(&p_context->ANALOG_USER));
 
-    if (IsDividerAlign(p_mc->MainDividerCounter, p_context->ANALOG_USER_DIVIDER) == true)
-        { MotAnalogUser_Conversion_Mark(&p_context->ANALOG_USER_CONVERSIONS); }
+    // else
+    // switch (MotAnalogUser_GetDirectionEdge(&p_context->ANALOG_USER))
+    // {
+    //     case MOT_ANALOG_USER_DIRECTION_FORWARD_EDGE:  MotorController_User_SetDirection(&p_context->MOT_DRIVE, 1);   break;
+    //     case MOT_ANALOG_USER_DIRECTION_REVERSE_EDGE:  MotorController_User_SetDirection(&p_context->MOT_DRIVE, -1);   break;
+    //     case MOT_ANALOG_USER_DIRECTION_NEUTRAL_EDGE:  MotorController_User_SetDirection(&p_context->MOT_DRIVE, 0);   break;
+    //     default: break;
+    // }
+
+    // if (MotAnalogUser_IsAnyBrakeOn(&p_context->ANALOG_USER) == true) { MotorController_User_SetCmdValue(p_context, 0U); }
+    // else { MotorController_User_SetCmdValue(p_context, MotAnalogUser_GetThrottle(&p_context->ANALOG_USER) / 2U); }
+
+    if (IsDividerAlign(p_mc->MainDividerCounter, p_context->ANALOG_USER_DIVIDER) == true) { MotAnalogUser_Conversion_Mark(&p_context->ANALOG_USER_CONVERSIONS); }
 }
 
 
@@ -104,37 +108,37 @@ static inline void _MotorController_ProcAnalogUser(const MotorController_T * p_c
 */
 static inline void _MotorController_ProcOptDin(const MotorController_T * p_context)
 {
-    // MotorController_State_T * p_mc = p_context->P_ACTIVE;
-    // uint8_t dinStatus = 0U;
+    MotorController_State_T * p_mc = p_context->P_ACTIVE;
+    uint8_t dinStatus = 0U;
 
-    // if (p_mc->Config.OptDinMode != MOTOR_CONTROLLER_OPT_DIN_DISABLE)
-    // {
-    //     Debounce_PollEdge(&p_mc->OptDin);
+    if (p_mc->Config.OptDinMode != MOTOR_CONTROLLER_OPT_DIN_DISABLE)
+    {
+        UserDIn_PollEdge(&p_context->OPT_DIN);
 
-    //     switch (p_mc->Config.OptDinMode)
-    //     {
-    //         case MOTOR_CONTROLLER_OPT_DIN_DISABLE: break;
-    //         case MOTOR_CONTROLLER_OPT_DIN_SPEED_LIMIT:
-    //             switch (Debounce_GetEdge(&p_mc->OptDin))
-    //             {
-    //                 case DEBOUNCE_EDGE_RISING:  MotorController_User_SetSpeedLimitAll(p_context, p_mc->Config.OptSpeedLimit_Fract16); break;
-    //                 case DEBOUNCE_EDGE_FALLING: MotorController_User_ClearSpeedLimitAll(p_context); break;
-    //                 default: break;
-    //             }
-    //             break;
-    //         // #ifdef CONFIG_MOTOR_CONTROLLER_SERVO_ENABLE
-    //         // case MOTOR_CONTROLLER_OPT_DIN_SERVO:
-    //         //     switch (Debounce_GetEdge(&p_mc->OptDin))
-    //         //     {
-    //         //         case DEBOUNCE_EDGE_RISING:  MotorController_User_EnterServoMode(p_mc);  break;
-    //         //         case DEBOUNCE_EDGE_FALLING: MotorController_User_ExitServoMode(p_mc);   break;
-    //         //         default: break;
-    //         //     }
-    //         //     break;
-    //         // #endif
-    //         default: break;
-    //     }
-    // }
+        switch (p_mc->Config.OptDinMode)
+        {
+            case MOTOR_CONTROLLER_OPT_DIN_DISABLE: break;
+            case MOTOR_CONTROLLER_OPT_DIN_SPEED_LIMIT:
+                switch (UserDIn_GetEdge(&p_context->OPT_DIN))
+                {
+                    case USER_DIN_EDGE_RISING:  MotorController_User_SetSpeedLimitAll(p_context, p_mc->Config.OptSpeedLimit_Fract16); break;
+                    case USER_DIN_EDGE_FALLING: MotorController_User_ClearSpeedLimitAll(p_context); break;
+                    default: break;
+                }
+                break;
+            // #ifdef CONFIG_MOTOR_CONTROLLER_SERVO_ENABLE
+            // case MOTOR_CONTROLLER_OPT_DIN_SERVO:
+            //     switch (Debounce_GetEdge(&p_mc->OptDin))
+            //     {
+            //         case DEBOUNCE_EDGE_RISING:  MotorController_User_EnterServoMode(p_mc);  break;
+            //         case DEBOUNCE_EDGE_FALLING: MotorController_User_ExitServoMode(p_mc);   break;
+            //         default: break;
+            //     }
+            //     break;
+            // #endif
+            default: break;
+        }
+    }
 }
 
 /*
@@ -172,13 +176,14 @@ static inline void _MotorController_HeatMonitor_Thread(const MotorController_T *
 
         case HEAT_MONITOR_STATUS_WARNING_HIGH:
             /*
+                Apply thermal current limiting based on hottest MOSFET
+                Does not check for edge trigger
                 Thermistor Adcu is roughly linear in Warning region
                 Increasing Limit only, reset on warning clear.
             */
-            /* Apply thermal current limiting based on hottest MOSFET */
-            // if (Monitor_IsWarningTriggering(p_context->HEAT_MOSFETS.P_STATE)) { }
             LimitArray_SetEntry(&p_context->MOT_I_LIMITS, MOT_I_LIMIT_HEAT_MC, HeatMonitor_Group_GetScalarLimit_Percent16(&p_context->HEAT_MOSFETS) / 2U);
             MotMotors_ApplyILimit(&p_context->MOTORS, &p_context->MOT_I_LIMITS);
+            // if (Monitor_IsWarningTriggering(p_context->HEAT_MOSFETS.P_STATE)) {MotorController_BeepMonitorTrigger(p_context); }
             break;
 
         case HEAT_MONITOR_STATUS_NORMAL:
@@ -201,36 +206,12 @@ static inline void _MotorController_HeatMonitor_Thread(const MotorController_T *
 
 
     /* Mark analog conversions for next cycle */
-    Analog_Conversion_MarkConversion(&p_context->HEAT_PCB.ANALOG_CONVERSION);
-    /* Mark all MOSFET conversions */
-    for (uint8_t i = 0U; i < p_context->HEAT_MOSFETS.COUNT; i++) { Analog_Conversion_MarkConversion(&p_context->HEAT_MOSFETS.P_CONTEXTS[i].ANALOG_CONVERSION); }
+    HeatMonitor_Group_MarkEach(&p_context->HEAT_MOSFETS);
+    HeatMonitor_MarkConversion(&p_context->HEAT_PCB);
 
     // /* Process individual motor heat monitoring */
-    // for (uint8_t iMotor = 0U; iMotor < p_context->MOTORS.LENGTH; iMotor++)     { Motor_Heat_Thread(&p_context->P_MOTOR_CONSTS[iMotor]);     }
+    // for (uint8_t iMotor = 0U; iMotor < p_context->MOTORS.LENGTH; iMotor++) { Motor_Heat_Thread(&p_context->P_MOTOR_CONSTS[iMotor]); }
 }
-
-
-/******************************************************************************/
-/*
-   VAux Monitor Thread
-*/
-/******************************************************************************/
-static inline void _MotorController_VMonitorBoard_Thread(const MotorController_T * p_context)
-{
-    MotorController_State_T * p_mc = p_context->P_ACTIVE;
-
-    RangeMonitor_Poll(p_context->V_ACCESSORIES.P_STATE, Analog_Conversion_GetResult(&p_context->V_ACCESSORIES.ANALOG_CONVERSION));
-    RangeMonitor_Poll(p_context->V_ANALOG.P_STATE, Analog_Conversion_GetResult(&p_context->V_ANALOG.ANALOG_CONVERSION));
-
-    if (RangeMonitor_IsAnyFault(p_context->V_ACCESSORIES.P_STATE) == true) { p_mc->FaultFlags.VAccsLimit = 1U; MotorController_StateMachine_EnterFault(p_context); }
-    if (RangeMonitor_IsAnyFault(p_context->V_ANALOG.P_STATE) == true) { p_mc->FaultFlags.VAnalogLimit = 1U; MotorController_StateMachine_EnterFault(p_context); }
-
-    if (p_mc->FaultFlags.Value != 0U) { MotorController_StateMachine_EnterFault(p_context); }
-
-    Analog_Conversion_MarkConversion(&p_context->V_ACCESSORIES.ANALOG_CONVERSION);
-    Analog_Conversion_MarkConversion(&p_context->V_ANALOG.ANALOG_CONVERSION);
-}
-
 
 /******************************************************************************/
 /*
@@ -274,6 +255,26 @@ static inline void _MotorController_VSourceMonitor_Thread(const MotorController_
 #endif
 }
 
+/******************************************************************************/
+/*
+   VAux Monitor Thread
+*/
+/******************************************************************************/
+static inline void _MotorController_VMonitorBoard_Thread(const MotorController_T * p_context)
+{
+    MotorController_State_T * p_mc = p_context->P_ACTIVE;
+
+    RangeMonitor_Poll(p_context->V_ACCESSORIES.P_STATE, Analog_Conversion_GetResult(&p_context->V_ACCESSORIES.ANALOG_CONVERSION));
+    RangeMonitor_Poll(p_context->V_ANALOG.P_STATE, Analog_Conversion_GetResult(&p_context->V_ANALOG.ANALOG_CONVERSION));
+
+    if (RangeMonitor_IsAnyFault(p_context->V_ACCESSORIES.P_STATE) == true) { p_mc->FaultFlags.VAccsLimit = 1U; MotorController_StateMachine_EnterFault(p_context); }
+    if (RangeMonitor_IsAnyFault(p_context->V_ANALOG.P_STATE) == true) { p_mc->FaultFlags.VAnalogLimit = 1U; MotorController_StateMachine_EnterFault(p_context); }
+
+    if (p_mc->FaultFlags.Value != 0U) { MotorController_StateMachine_EnterFault(p_context); }
+
+    Analog_Conversion_MarkConversion(&p_context->V_ACCESSORIES.ANALOG_CONVERSION);
+    Analog_Conversion_MarkConversion(&p_context->V_ANALOG.ANALOG_CONVERSION);
+}
 
 
 /******************************************************************************/
@@ -292,7 +293,6 @@ static inline void MotorController_Main_Thread(const MotorController_T * p_conte
         /*
             Med Freq, Low Priority, 1 ms
         */
-
         /* SubStates update on proc, at least once Motor_StateMachine will have processed */
         /* Handle Inputs as they are received */
         // _StateMachine_ProcSyncOutput(&p_mc->StateMachine, p_mc); // maybe change this to signal if enter fault is on 1ms thread
@@ -300,6 +300,15 @@ static inline void MotorController_Main_Thread(const MotorController_T * p_conte
 
         /* Proc app Machine */ /* let compiler optimize */
         // if (StateMachine_IsActiveStateId(p_context->STATE_MACHINE.P_ACTIVE, MCSM_STATE_ID_MAIN) == true) { MotDrive_Proc_Thread(&p_context->MOT_DRIVE); }
+
+        // switch (p_mc->StateMachine.State)
+        // {
+        //     case MOTOR_CONTROLLER_STATE_INIT:   break;
+        //     case MOTOR_CONTROLLER_STATE_MAIN:    break;
+        //     case MOTOR_CONTROLLER_STATE_LOCK:   break;
+        //     case MOTOR_CONTROLLER_STATE_FAULT:  break;
+        //     default: break;
+        // }
 
         for (uint8_t iProtocol = 0U; iProtocol < p_context->PROTOCOL_COUNT; iProtocol++) { Protocol_Proc(&p_context->P_PROTOCOLS[iProtocol]); }
 
@@ -354,8 +363,8 @@ static inline void MotorController_Main_Thread(const MotorController_T * p_conte
             _MotorController_ProcOptDin(p_context);
             _MotorController_VMonitorBoard_Thread(p_context); /* Except VSupply */
             _MotorController_HeatMonitor_Thread(p_context);
+
             /* Can use low priority check, as motor is already in fault state */
-            // if (MotMotors_IsAny(&p_context->MOTORS, _Motor_StateMachine_IsFault) == true) { p_mc->FaultFlags.Motors = 1U; }
             if (MotMotors_IsAnyState(&p_context->MOTORS, MSM_STATE_ID_FAULT) == true) { p_mc->FaultFlags.Motors = 1U; }
 
             if (p_mc->FaultFlags.Value != 0U) { MotorController_StateMachine_EnterFault(p_context); }
@@ -363,9 +372,7 @@ static inline void MotorController_Main_Thread(const MotorController_T * p_conte
             MotorController_CaptureVSource(p_context); /* update vout ratios */
 
         #if defined(CONFIG_MOTOR_CONTROLLER_DEBUG_ENABLE) || defined(CONFIG_MOTOR_DEBUG_ENABLE)
-            // _Blinky_Toggle(&p_mc->Meter);
-            // _Blinky_Toggle(&p_mc->Buzzer);
-            // volatile uint32_t test = VMonitor_ChargeLevelOfAdcu_Percent16(&p_mc->V_SOURCE, p_mc->AnalogResults.VSource_Adcu);
+
         #endif
         }
 
@@ -389,10 +396,12 @@ static inline void MotorController_Timer1Ms_Thread(const MotorController_T * p_c
     // }
 
 #if defined(CONFIG_MOTOR_CONTROLLER_DEBUG_ENABLE) || defined(CONFIG_MOTOR_DEBUG_ENABLE)
-// _Blinky_Toggle(&p_mc->Meter);
+    // _Blinky_Toggle(&p_mc->Meter);
 #endif
     p_mc->TimerDividerCounter++;
 }
+
+
 
 /*
     High Freq, High Priority
@@ -400,14 +409,21 @@ static inline void MotorController_Timer1Ms_Thread(const MotorController_T * p_c
 /* Alternatively these can be placed directly user main if the compiler does not optimize */
 static inline void MotorController_PWM_Thread(const MotorController_T * p_context)
 {
-    for (uint8_t iMotor = 0U; iMotor < p_context->MOTORS.LENGTH; iMotor++) { Motor_MarkAnalog_Thread(&p_context->MOTORS.P_CONTEXTS[iMotor]); }
+    // for (uint8_t iMotor = 0U; iMotor < p_context->MOTORS.LENGTH; iMotor++) { Motor_MarkAnalog_Thread(&p_context->MOTORS.P_CONTEXTS[iMotor]); }
 
-    // if (MotorTimeRef_IsAnalogCycle(p_context->P_ACTIVE->ControlCounter) == true)
-    if (Motor_IsAnalogCycle(&p_context->MOTORS.P_CONTEXTS[0U]) == true) /* todo common timer */
+    // if (Motor_IsAnalogCycle(&p_context->MOTORS.P_CONTEXTS[0U]) == true) /* todo common timer */
+    // {
+    //     for (uint8_t iAdc = 0U; iAdc < p_context->ADC_COUNT; iAdc++) { Analog_ADC_ProcMarked(&p_context->P_ANALOG_ADCS[iAdc]); }
+    // }
+
+    if (MotorTimeRef_IsAnalogCycle(p_context->P_ACTIVE->ControlCounter) == true)
     {
-        for (uint8_t iAdc = 0U; iAdc < p_context->ADC_COUNT; iAdc++) { Analog_ADC_ProcMarked(&p_context->P_ANALOG_ADCS[iAdc]); }
-        // todo enforce phases in the same fifo
+        for (uint8_t iMotor = 0U; iMotor < p_context->MOTORS.LENGTH; iMotor++) { _Motor_MarkAnalog_Thread(&p_context->MOTORS.P_CONTEXTS[iMotor]); }
     }
+
+    // if (MotorTimeRef_IsAnalogCycle(p_context->P_ACTIVE->ControlCounter) == true) /* removable */
+    for (uint8_t iAdc = 0U; iAdc < p_context->ADC_COUNT; iAdc++) { Analog_ADC_ProcMarked(&p_context->P_ANALOG_ADCS[iAdc]); }
+
 
     for (uint8_t iMotor = 0U; iMotor < p_context->MOTORS.LENGTH; iMotor++) { Motor_PWM_Thread(&p_context->MOTORS.P_CONTEXTS[iMotor]); }
 

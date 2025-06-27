@@ -101,8 +101,8 @@ bool Hall_IsTableValid(const Hall_State_T * p_hall)
 /*
     Id Interface
 */
-// void Hall_ConfigId_Set(Hall_Config_T * p_hall, Hall_ConfigId_T varId, int32_t varValue)
-void Hall_ConfigId_Set(Hall_State_T * p_hall, Hall_ConfigId_T varId, int32_t varValue)
+// void _Hall_ConfigId_Set(Hall_Config_T * p_hall, Hall_ConfigId_T varId, int varValue)
+void _Hall_ConfigId_Set(Hall_State_T * p_hall, Hall_ConfigId_T varId, int varValue)
 {
     switch (varId)
     {
@@ -117,9 +117,9 @@ void Hall_ConfigId_Set(Hall_State_T * p_hall, Hall_ConfigId_T varId, int32_t var
     }
 }
 
-int32_t Hall_ConfigId_Get(const Hall_State_T * p_hall, Hall_ConfigId_T varId)
+int _Hall_ConfigId_Get(const Hall_State_T * p_hall, Hall_ConfigId_T varId)
 {
-    int32_t value = 0;
+    int value = 0;
     switch (varId)
     {
         case HALL_CONFIG_SENSOR_TABLE_1: value = p_hall->Config.SensorsTable[1U]; break;
@@ -134,5 +134,15 @@ int32_t Hall_ConfigId_Get(const Hall_State_T * p_hall, Hall_ConfigId_T varId)
     return value;
 }
 
+void Hall_ConfigId_Set(const Hall_T * p_hall, Hall_ConfigId_T varId, int varValue)
+{
+    if (p_hall == NULL) return;
+    _Hall_ConfigId_Set(p_hall->P_STATE, varId, varValue);
+}
 
+int Hall_ConfigId_Get(const Hall_T * p_hall, Hall_ConfigId_T varId)
+{
+    if (p_hall == NULL) return 0;
+    return _Hall_ConfigId_Get(p_hall->P_STATE, varId);
+}
 

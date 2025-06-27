@@ -58,6 +58,9 @@ bool MotorController_User_ClearILimitAll(const MotorController_T * p_context)
     MotMotors_ApplyILimit(&p_context->MOTORS, &p_context->MOT_I_LIMITS);
 }
 
+/******************************************************************************/
+/*   */
+/******************************************************************************/
 void MotorController_User_SetOptSpeedLimitOnOff(const MotorController_T * p_context, bool isEnable)
 {
     if (isEnable == true) { MotorController_User_SetSpeedLimitAll(p_context, p_context->P_ACTIVE->Config.OptSpeedLimit_Fract16); }
@@ -77,8 +80,7 @@ void MotorController_User_SetOptILimitOnOff(const MotorController_T * p_context,
 void MotorController_User_SetVSupplyRef(const MotorController_T * p_context, uint16_t volts)
 {
     MotorController_State_T * p_mc = p_context->P_ACTIVE;
-    // p_mc->Config.VSupplyRef = Motor_VSourceLimitOf(volts);
-    p_mc->Config.VSupplyRef = volts;
+    p_mc->Config.VSupplyRef = math_min(volts, MotorAnalogRef_GetVRated_V());
     MotorController_ResetVSourceMonitorDefaults(p_context);
     MotorController_CaptureVSource(p_context);
 }
@@ -99,14 +101,14 @@ void MotorController_User_SetInputMode(const MotorController_T * p_context, Moto
             // MotMotors_ForEach(&p_context->MOTORS, Motor_Var_Cmd_Disable);
             for (uint8_t iMotor = 0U; iMotor < p_context->MOTORS.LENGTH; iMotor++)
             {
-                VarAccess_DisableSet(&(MotMotors_ContextAt(&p_context->MOTORS, iMotor)->VAR_ACCESS.IO));
+                Motor_Var_DisableInput(MotMotors_StateAt(&p_context->MOTORS, iMotor));
             }
             break;
         case MOTOR_CONTROLLER_INPUT_MODE_SERIAL:
             // MotMotors_ForEach(&p_context->MOTORS, Motor_Var_Cmd_Enable);
             for (uint8_t iMotor = 0U; iMotor < p_context->MOTORS.LENGTH; iMotor++)
             {
-                VarAccess_EnableSet(&(MotMotors_ContextAt(&p_context->MOTORS, iMotor)->VAR_ACCESS.IO));
+                Motor_Var_EnableInput(MotMotors_StateAt(&p_context->MOTORS, iMotor));
             }
             break;
         case MOTOR_CONTROLLER_INPUT_MODE_CAN:
@@ -124,7 +126,7 @@ void MotorController_User_SetInputMode(const MotorController_T * p_context, Moto
     todo regularize return status
 */
 /******************************************************************************/
-uint32_t MotorController_User_Call(const MotorController_T * p_context, MotorController_User_CallId_T id, int32_t value)
+uint32_t MotorController_User_Call(const MotorController_T * p_context, MotorController_User_SystemCmd_T id, int32_t value)
 {
     MotorController_State_T * p_mc = p_context->P_ACTIVE;
 

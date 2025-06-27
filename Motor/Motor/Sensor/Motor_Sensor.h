@@ -26,27 +26,63 @@
 /*!
     @file   Motor_Sensor.h
     @author FireSourcery
-    @brief  Sensor Abstraction/Selection Interface
+    @brief  Sensor Repo/Selection.
 */
 /******************************************************************************/
+
+/*
+    Include all sensor types here.
+        Calibration State
+        Propagate Set wrappers
+        Id Access
+*/
 #include "Hall/Hall_MotorSensor.h"
+#include "Hall/Motor_Hall.h"
+
 #include "Encoder/Encoder_MotorSensor.h"
+#include "Encoder/Motor_Encoder.h"
+
+#include "MotorSensor_Table.h"
 #include "MotorSensor.h"
 
 /* Part of Motor */
+/* non inline, include by Motor */
 typedef const struct Motor Motor_T;
 typedef struct Motor_State Motor_State_T;
 
-
-// alternatively,
-// static inline MotorSensor_T * _Motor_Sensor_Get(const Motor_T * p_motor)
-// {
-//     return MotorSensor_Of(&p_motor->SENSOR_TABLE, p_motor->P_ACTIVE->Config.SensorMode);
-// }
-
+/******************************************************************************/
+/*!
+    Wrapper
+*/
+/******************************************************************************/
+extern void Motor_Sensor_Reinit(Motor_State_T * p_motor);
 extern void Motor_Sensor_ResetUnits(Motor_State_T * p_motor);
 
 
+/******************************************************************************/
+/*!
+    Id Access
+*/
+/******************************************************************************/
+int Motor_Sensor_VarType_Get(const Motor_T * p_motor, MotorSensor_Id_T typeId, int varId);
+
+int Motor_Sensor_VarTypeConfig_Get(const Motor_T * p_motor, MotorSensor_Id_T typeId, int varId);
+void Motor_Sensor_VarTypeConfig_Set(const Motor_T * p_motor, MotorSensor_Id_T typeId, int varId, int varValue);
+
+void Motor_Sensor_CalibrationCmd_Call(const Motor_T * p_motor, MotorSensor_Id_T varId, int varValue);
+
+/* alt */
+// typedef enum Motor_SensorTable_VarType
+// {
+//     MOTOR_SENSOR_TABLE_VAR_TYPE_HALL_STATE,
+//     MOTOR_SENSOR_TABLE_VAR_TYPE_HALL_CONFIG,
+//     MOTOR_SENSOR_TABLE_VAR_TYPE_ENCODER_STATE,
+//     MOTOR_SENSOR_TABLE_VAR_TYPE_ENCODER_CONFIG,
+// }
+// Motor_SensorTable_VarType_T;
+
+
+//handled by interface
 // extern angle16_t Motor_PollSensorAngle(const Motor_T * p_motor);
 // extern angle16_t Motor_CaptureAngle(const Motor_T * p_motor);
 // extern bool Motor_PollCaptureSpeed(const Motor_T * p_motor);

@@ -124,6 +124,7 @@ RangeMonitor_T;
 */
 /* Severity detection using absolute values */
 /* Get severity level regardless of direction */
+static inline RangeMonitor_Status_T RangeMonitor_GetStatus(const RangeMonitor_T * p_monitor) { return p_monitor->Status; }
 static inline Monitor_Status_T RangeMonitor_GetSeverity(const RangeMonitor_T * p_monitor) { return (Monitor_Status_T)abs(p_monitor->Status); }
 /* abs(±2) == 2 */
 static inline bool RangeMonitor_IsAnyFault(const RangeMonitor_T * p_monitor) { return abs(p_monitor->Status) == MONITOR_STATUS_FAULT; }
@@ -219,6 +220,16 @@ extern void RangeMonitor_SetNominal(RangeMonitor_T * p_monitor, int32_t nominal)
     Configuration IDs
 */
 /******************************************************************************/
+typedef enum RangeMonitor_VarId
+{
+    RANGE_MONITOR_VAR_STATUS,
+    RANGE_MONITOR_VAR_VALUE,
+}
+RangeMonitor_VarId_T;
+
+int32_t _RangeMonitor_VarId_Get(const RangeMonitor_T * p_monitor, RangeMonitor_VarId_T varId);
+int32_t RangeMonitor_VarId_Get(const RangeMonitor_T * p_monitor, RangeMonitor_VarId_T varId);
+
 typedef enum RangeMonitor_ConfigId
 {
     RANGE_MONITOR_CONFIG_FAULT_OVER_LIMIT,
@@ -233,5 +244,6 @@ RangeMonitor_ConfigId_T;
 
 int32_t _RangeMonitor_ConfigId_Get(const RangeMonitor_T * p_monitor, RangeMonitor_ConfigId_T configId);
 void _RangeMonitor_ConfigId_Set(RangeMonitor_T * p_monitor, RangeMonitor_ConfigId_T configId, int32_t value);
+
 int RangeMonitor_ConfigId_Get(const RangeMonitor_T * p_monitor, int configId);
 void RangeMonitor_ConfigId_Set(RangeMonitor_T * p_monitor, int configId, int value);

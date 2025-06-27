@@ -44,7 +44,6 @@
 #include "Motor/Motor/Motor_Config.h"
 #include "Motor/Motor/Motor_User.h"
 #include "Motor/Motor/Motor_StateMachine.h"
-#include "Motor/Motor/MotorTimeRef.h"
 // #include "Motor/Motor/Motor_Include.h"
 
 #include "Transducer/Blinky/Blinky.h"
@@ -52,6 +51,7 @@
 #include "Transducer/Thermistor/HeatMonitor.h"
 
 #include "Peripheral/Analog/Analog.h"
+#include "Peripheral/Analog/Analog_ADC.h"
 #include "Peripheral/NvMemory/Flash/Flash.h"
 #include "Peripheral/NvMemory/EEPROM/EEPROM.h"
 #include "Peripheral/Serial/Serial.h"
@@ -66,15 +66,18 @@
 #include "Utility/Shell/Shell.h"
 #endif
 #include "Utility/BootRef/BootRef.h"
-#include "Type/Array/struct_array.h"
 #include "Type/Word/Version.h"
 
-#include "Transducer/Voltage/Linear_Voltage.h"
 #include "Math/Linear/Linear.h"
 
 #include <stdint.h>
 #include <string.h>
 
+
+/******************************************************************************/
+/*!
+*/
+/******************************************************************************/
 /* Init Mode */
 typedef enum MotorController_MainMode
 {
@@ -100,24 +103,10 @@ typedef enum MotorController_OptDinMode
 }
 MotorController_OptDinMode_T;
 
-
-/* todo as substate */
-/* Blocking SubState/Function Id */
-typedef enum MotorController_LockId
-{
-    MOTOR_CONTROLLER_LOCK_ENTER,
-    MOTOR_CONTROLLER_LOCK_EXIT,
-    MOTOR_CONTROLLER_LOCK_CALIBRATE_SENSOR,
-    MOTOR_CONTROLLER_LOCK_CALIBRATE_ADC,
-    MOTOR_CONTROLLER_LOCK_NVM_SAVE_CONFIG,
-    MOTOR_CONTROLLER_LOCK_NVM_RESTORE_CONFIG, /* on Error read from Nvm to RAM */
-    MOTOR_CONTROLLER_LOCK_REBOOT,
-    // MOTOR_CONTROLLER_LOCK_NVM_SAVE_BOOT,
-    // MOTOR_CONTROLLER_LOCK_NVM_WRITE_ONCE,
-    // MOTOR_CONTROLLER_LOCK_NVM_READ_ONCE,
-}
-MotorController_LockId_T;
-
+/******************************************************************************/
+/*!
+*/
+/******************************************************************************/
 /*
     Fault SubState flags
     Faults flags retain set state until user clears
@@ -164,7 +153,7 @@ MotorController_InitFlags_T;
 typedef struct MotorController_CmdInput
 {
     uint8_t MotorId;
-    int16_t CmdValue;
+    int16_t CmdValue; /* [-32768:32767] */
     sign_t Direction;
     Motor_FeedbackMode_T FeedbackMode;
     Phase_Output_T ControlState;
@@ -189,6 +178,8 @@ typedef struct MotorController_Config
     MotorController_InputMode_T InputMode;
     // MotorController_BuzzerFlags_T BuzzerEnable;
     // MotorController_InitFlags_T InitChecksEnabled;
+
+    /* OptDin */
     MotorController_OptDinMode_T OptDinMode;
     uint16_t OptSpeedLimit_Fract16;
     uint16_t OptILimit_Fract16;
@@ -200,6 +191,38 @@ typedef struct MotorController_Config
 }
 MotorController_Config_T;
 
+/******************************************************************************/
+/*!
+*/
+/******************************************************************************/
+/* todo as substate */
+/* Blocking SubState/Function Id */
+// typedef enum MotorController_LockCmd
+typedef enum MotorController_LockId
+{
+    MOTOR_CONTROLLER_LOCK_ENTER,
+    MOTOR_CONTROLLER_LOCK_EXIT,
+    MOTOR_CONTROLLER_LOCK_CALIBRATE_SENSOR,
+    MOTOR_CONTROLLER_LOCK_CALIBRATE_ADC,
+    MOTOR_CONTROLLER_LOCK_NVM_SAVE_CONFIG,
+    MOTOR_CONTROLLER_LOCK_NVM_RESTORE_CONFIG, /* on Error read from Nvm to RAM */
+    MOTOR_CONTROLLER_LOCK_REBOOT,
+    // MOTOR_CONTROLLER_LOCK_NVM_SAVE_BOOT,
+    // MOTOR_CONTROLLER_LOCK_NVM_WRITE_ONCE,
+    // MOTOR_CONTROLLER_LOCK_NVM_READ_ONCE,
+}
+MotorController_LockId_T;
+
+typedef enum MotorController_LockOpStatus
+{
+    MOTOR_CONTROLLER_LOCK_OP_STATUS_OK,
+    MOTOR_CONTROLLER_LOCK_OP_STATUS_ERROR,
+    MOTOR_CONTROLLER_LOCK_OP_STATUS_TIMEOUT,
+}
+MotorController_LockOpStatus_T;
+
+
+
 /* Internal runtime state. these can be moved to submodules eventually. */
 typedef struct MotorController_State
 {
@@ -209,6 +232,8 @@ typedef struct MotorController_State
     uint32_t StateCounter;
     uint32_t ControlCounter;
 
+    MotorController_CmdInput_T CmdInput; /* Buffered Input for StateMachine */
+
     /* State and SubState */
     StateMachine_Active_T StateMachine; /* Data */
     MotorController_FaultFlags_T FaultFlags; /* Fault SubState */
@@ -216,10 +241,7 @@ typedef struct MotorController_State
     // MotorController_StateFlags_T StateFlags;
     MotDrive_Active_T MotDrive; /* Optionally contain on init */
 
-    MotorController_LockId_T LockSubState;
-
-    MotorController_CmdInput_T CmdInput; /* Buffered Input for StateMachine */
-
+    MotorController_LockId_T LockSubState; /* todo depreciate */
     /* Async return status */
     // union
     // {

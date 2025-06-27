@@ -253,9 +253,19 @@ extern void Monitor_SetNominal(Monitor_T * p_monitor, int32_t nominal);
 
 /******************************************************************************/
 /*
-    Configuration IDs
+
 */
 /******************************************************************************/
+typedef enum Monitor_VarId
+{
+    MONITOR_VAR_STATUS,
+    MONITOR_VAR_VALUE,
+}
+Monitor_VarId_T;
+
+int32_t _Monitor_VarId_Get(const Monitor_T * p_monitor, Monitor_VarId_T varId);
+int32_t Monitor_VarId_Get(const Monitor_T * p_monitor, Monitor_VarId_T varId);
+
 typedef enum Monitor_ConfigId
 {
     MONITOR_CONFIG_FAULT_LIMIT,
@@ -268,5 +278,6 @@ Monitor_ConfigId_T;
 
 int32_t _Monitor_ConfigId_Get(const Monitor_T * p_monitor, Monitor_ConfigId_T id);
 void _Monitor_ConfigId_Set(Monitor_T * p_monitor, Monitor_ConfigId_T id, int32_t value);
+
 int Monitor_ConfigId_Get(const Monitor_T * p_monitor, int id);
 void Monitor_ConfigId_Set(Monitor_T * p_monitor, int id, int value);

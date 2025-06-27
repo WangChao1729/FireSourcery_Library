@@ -168,6 +168,7 @@ Hall_T;
 #define HALL_STATE_ALLOC() (&(Hall_State_T){0})
 
 /* Init from primitive */
+// #define HALL_INIT_FROM
 #define HALL_INIT(p_PinAHal, PinAId, p_PinBHal, PinBId, p_PinCHal, PinCId, p_State, p_Config) \
 {                                                                \
     .PIN_A = PIN_INIT(p_PinAHal, PinAId),                        \
@@ -416,8 +417,11 @@ typedef enum Hall_ConfigId
 }
 Hall_ConfigId_T;
 
-extern int32_t Hall_ConfigId_Get(const Hall_State_T * p_hall, Hall_ConfigId_T varId);
-extern void Hall_ConfigId_Set(Hall_State_T * p_hall, Hall_ConfigId_T varId, int32_t varValue);
+extern int _Hall_ConfigId_Get(const Hall_State_T * p_hall, Hall_ConfigId_T varId);
+extern void _Hall_ConfigId_Set(Hall_State_T * p_hall, Hall_ConfigId_T varId, int varValue);
+
+void Hall_ConfigId_Set(const Hall_T * p_hall, Hall_ConfigId_T varId, int varValue);
+int Hall_ConfigId_Get(const Hall_T * p_hall, Hall_ConfigId_T varId);
 
 #endif
 

@@ -43,6 +43,12 @@ void Encoder_InitInterrupts_Quadrature(const Encoder_T * p_encoder)
     HAL_Encoder_InitPinInterruptRisingEdge(p_encoder->P_HAL_PIN_Z, p_encoder->PIN_Z_ID);
 }
 
+void Encoder_InitInterrupts_Incremental(const Encoder_T * p_encoder)
+{
+    HAL_Encoder_InitPinInterruptDualEdge(p_encoder->P_HAL_PIN_A, p_encoder->PIN_A_ID);
+}
+
+/* as Hall  */
 void Encoder_InitInterrupts_ABC(const Encoder_T * p_encoder)
 {
     HAL_Encoder_InitPinInterruptDualEdge(p_encoder->P_HAL_PIN_A, p_encoder->PIN_A_ID);
@@ -50,22 +56,18 @@ void Encoder_InitInterrupts_ABC(const Encoder_T * p_encoder)
     HAL_Encoder_InitPinInterruptDualEdge(p_encoder->P_HAL_PIN_Z, p_encoder->PIN_Z_ID);
 }
 
-void Encoder_InitInterrupts_Incremental(const Encoder_T * p_encoder)
-{
-    HAL_Encoder_InitPinInterruptDualEdge(p_encoder->P_HAL_PIN_A, p_encoder->PIN_A_ID);
-}
-
 // static inline void Encoder_Quadrature_InitDirection(Encoder_State_T * p_encoder) { p_encoder->DirectionComp = (p_encoder->Config.IsALeadBPositive == true) ? 1 : -1; }
 
 /******************************************************************************/
 /*!
+    Config Units
     todo split module
     Units
 */
 /******************************************************************************/
 
 /* One point of access to reduce flash use */
-uint32_t math_muldiv64_unsigned(uint32_t value, uint32_t factor, uint32_t divisor) { return (uint64_t)value * factor / divisor; }
+// uint32_t math_muldiv64_unsigned(uint32_t value, uint32_t factor, uint32_t divisor) { return (uint64_t)value * factor / divisor; }
 
 
 /*
@@ -112,12 +114,13 @@ static uint32_t MaxDeltaD(Encoder_State_T * p_encoder)
 void _Encoder_ResetUnitsScalarSpeed(Encoder_State_T * p_encoder)
 {
     uint32_t unitsFactor = (uint32_t)32768U * 60U;
-    uint32_t unitsDivisor = p_encoder->Config.CountsPerRevolution * p_encoder->Config.ScalarSpeedRef_Rpm;
+    uint32_t unitsDivisor = (uint32_t)p_encoder->Config.CountsPerRevolution * p_encoder->Config.ScalarSpeedRef_Rpm;
     p_encoder->UnitScalarSpeedShift = 14U; // todo as shift max of MaxDeltaD
     p_encoder->UnitScalarSpeed = ((uint64_t)unitsFactor << p_encoder->UnitScalarSpeedShift) * p_encoder->UnitTime_Freq / unitsDivisor;
 }
 
 /*
+    /Second
     In range for electrical speed only
     Angle16/S same as RPS normalized to [0:65536]
 
@@ -138,7 +141,8 @@ void _Encoder_ResetUnitsScalarSpeed(Encoder_State_T * p_encoder)
 */
 void _Encoder_ResetUnitsAngularSpeed(Encoder_State_T * p_encoder)
 {
-    p_encoder->UnitAngularSpeed = math_muldiv64_unsigned(ENCODER_ANGLE_DEGREES, p_encoder->UnitTime_Freq, p_encoder->Config.CountsPerRevolution);
+    // p_encoder->UnitAngularSpeed = math_muldiv64_unsigned(ENCODER_ANGLE_DEGREES, p_encoder->UnitTime_Freq, p_encoder->Config.CountsPerRevolution);
+    p_encoder->UnitAngularSpeed = (uint64_t)ENCODER_ANGLE_DEGREES * p_encoder->UnitTime_Freq / p_encoder->Config.CountsPerRevolution;
     // p_encoder->UnitAngularSpeedShift = 0U;
 }
 
@@ -154,11 +158,9 @@ void _Encoder_ResetUnitsAngularSpeed(Encoder_State_T * p_encoder)
 
     ModeDT => FreqD
             [FreqD * [DEGREES / CountsPerRevolution]] / POLLING_FREQ
-                <=> as UnitAngularSpeed / POLLING_FREQ
-
             [FreqD * [(DEGREES << SHIFT) / CountsPerRevolution / POLLING_FREQ]] >> SHIFT
-                <=> [FreqD * UnitAngleD / POLLING_FREQ]
-
+            <=> [FreqD * UnitAngleD / POLLING_FREQ]
+            <=> as UnitAngularSpeed / POLLING_FREQ
 */
 void _Encoder_ResetUnitsPollingAngle(Encoder_State_T * p_encoder)
 {
@@ -170,9 +172,9 @@ void _Encoder_ResetUnitsPollingAngle(Encoder_State_T * p_encoder)
     // }
     // else if (p_encoder->UnitTime_Freq == 1U)
     // {
-    //     /* using ANGLE_SHIFT */
-    //     p_encoder->UnitPollingAngle = p_encoder->UnitAngleD * p_encoder->Config.PartitionsPerRevolution / p_const->POLLING_FREQ;
-    //     p_encoder->InterpolateAngleLimit = p_encoder->UnitAngleD * p_encoder->Config.PartitionsPerRevolution;
+        /* using ANGLE_SHIFT */
+        p_encoder->UnitPollingAngle = p_encoder->UnitAngleD * p_encoder->Config.PartitionsPerRevolution / p_encoder->PollingFreq;
+        p_encoder->InterpolateAngleLimit = p_encoder->UnitAngleD * p_encoder->Config.PartitionsPerRevolution;
     // }
 }
 
@@ -211,6 +213,12 @@ void _Encoder_ResetUnitsLinearSpeed(Encoder_State_T * p_encoder)
     // p_encoder->UnitSurfaceSpeed = math_muldiv64_unsigned(unitsFactor, p_encoder->UnitTime_Freq << p_encoder->UnitSurfaceSpeedShift, unitsDivisor * p_encoder->Config.CountsPerRevolution);
 }
 
+
+
+/*
+
+*/
+// void _Encoder_ResetUnits(const Encoder_T * p_encoder) using const def
 void _Encoder_ResetUnits(Encoder_State_T * p_encoder)
 {
     // p_encoder->DirectionComp = _Encoder_GetDirectionComp(p_encoder->P_STATE);
@@ -242,6 +250,7 @@ void Encoder_SetScalarSpeedRef(Encoder_State_T * p_encoder, uint16_t speedRef)
     // _Encoder_ResetUnitsLinearSpeed(p_encoder);
 }
 
+
 /*
     gearRatio as Surface/Encoder
 */
@@ -265,12 +274,6 @@ void Encoder_SetGroundRatio_Metric(Encoder_State_T * p_encoder, uint32_t wheelDi
 
 
 
-
-/******************************************************************************/
-/*
-    Config
-*/
-/******************************************************************************/
 
 /******************************************************************************/
 /*!
@@ -402,7 +405,7 @@ void Encoder_CompleteAlignValidate(Encoder_State_T * p_encoder)
 
 void Encoder_ClearAlign(Encoder_State_T * p_encoder)
 {
-    p_encoder->Align = ENCODER_ALIGN_NO;
+    p_encoder->Align = ENCODER_ALIGN_NONE;
 }
 
 
@@ -461,19 +464,6 @@ void Encoder_CalibrateQuadratureDirection(Encoder_State_T * p_encoder, bool isPo
 /******************************************************************************/
 
 
-int32_t Enocder_VarOutput_Get(const Encoder_State_T * p_encoder, Encoder_VarId_T varId)
-{
-    int32_t value = 0;
-    switch (varId)
-    {
-        // case ENCODER_VAR_FREQ:            value = p_encoder->FreqD;     break;
-        // case ENCODER_VAR_RPM:             value = Encoder_ModeDT_GetRotationalSpeed_RPM(p_encoder);     break;
-        // case ENCODER_VAR_DELTA_T_SPEED:   value = Encoder_DeltaT_GetRotationalSpeed_RPM(p_encoder);     break;
-        // case ENCODER_VAR_DELTA_D_SPEED:   value = Encoder_DeltaD_GetRotationalSpeed_RPM(p_encoder);     break;
-    }
-    return value;
-}
-
 
 // //
 // uint16_t CountsPerRevolution;       /* Derive Angular Units. */
@@ -492,7 +482,7 @@ int32_t Enocder_VarOutput_Get(const Encoder_State_T * p_encoder, Encoder_VarId_T
 // bool IsALeadBPositive;              /* User runtime calibration for encoder install direction. Accounts for LUT calibration */
 // /* Optionally combine with compile time defined QUADRATURE_A_LEAD_B_INCREMENT */
 //
-int32_t Encoder_ConfigId_Get(const Encoder_State_T * p_encoder, Encoder_ConfigId_T varId)
+int32_t _Encoder_ConfigId_Get(const Encoder_State_T * p_encoder, Encoder_ConfigId_T varId)
 {
     int32_t value = 0;
     switch (varId)
@@ -508,7 +498,7 @@ int32_t Encoder_ConfigId_Get(const Encoder_State_T * p_encoder, Encoder_ConfigId
     return value;
 }
 
-void Encoder_ConfigId_Set(Encoder_State_T * p_encoder, Encoder_ConfigId_T varId, int32_t varValue)
+void _Encoder_ConfigId_Set(Encoder_State_T * p_encoder, Encoder_ConfigId_T varId, int32_t varValue)
 {
     switch (varId)
     {
@@ -521,4 +511,13 @@ void Encoder_ConfigId_Set(Encoder_State_T * p_encoder, Encoder_ConfigId_T varId,
         case ENCODER_CONFIG_INDEX_ZERO_REF:                    Encoder_SetIndexZeroRef(p_encoder, varValue);              break;
         // case ENCODER_CONFIG_CALIBRATE_ZERO_REF:                Motor_Encoder_CalibrateHomeOffset(p_motor);                  break;
     }
+}
+
+/*
+    Set with propagate
+*/
+void Encoder_ConfigId_Set(const Encoder_T * p_encoder, Encoder_ConfigId_T varId, int32_t varValue)
+{
+    _Encoder_ConfigId_Set(p_encoder->P_STATE, varId, varValue);
+    // _Encoder_ResetUnits(p_encoder);
 }

@@ -171,6 +171,9 @@ typedef struct Encoder_State
 #if     defined(CONFIG_ENCODER_HW_DECODER)
     HAL_Encoder_Counter_T * const P_HAL_ENCODER_COUNTER; /*!< Pulse Counter */
 #endif
+#if     defined(CONFIG_ENCODER_HW_DECODER)
+    HAL_Encoder_Counter_T * const P_HAL_ENCODER_COUNTER; /*!< Pulse Counter */
+#endif
 }
 Encoder_State_T;
 #define ENCODER_STATE_ALLOC() (&(Encoder_State_T){0})

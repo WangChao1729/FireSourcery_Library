@@ -168,16 +168,19 @@ typedef struct Encoder_State
     uint8_t UnitScalarSpeedShift;
     uint8_t UnitSurfaceSpeedShift;          /* Shifts applicable to ModeD/DT */
     uint8_t UnitAngularSpeedShift;
+#if     defined(CONFIG_ENCODER_HW_DECODER)
+    HAL_Encoder_Counter_T * const P_HAL_ENCODER_COUNTER; /*!< Pulse Counter */
+#endif
 }
 Encoder_State_T;
-
 #define ENCODER_STATE_ALLOC() (&(Encoder_State_T){0})
-
 typedef const struct Encoder
 {
 #if     defined(CONFIG_ENCODER_HW_DECODER)
     HAL_Encoder_Counter_T * P_HAL_ENCODER_COUNTER; /*!< Pulse Counter */
-#elif   defined(CONFIG_ENCODER_HW_EMULATED)
+    // #elif   defined(CONFIG_ENCODER_HW_EMULATED)
+#endif
+#if   defined(CONFIG_ENCODER_HW_EMULATED)
     /* HAL_Encoder_Pin_T configures settings not included in Pin_T, case of interrupt support */
     HAL_Encoder_Pin_T * P_HAL_PIN_A; uint32_t PIN_A_ID; /* Encoder_Pin_T */
     HAL_Encoder_Pin_T * P_HAL_PIN_B; uint32_t PIN_B_ID;

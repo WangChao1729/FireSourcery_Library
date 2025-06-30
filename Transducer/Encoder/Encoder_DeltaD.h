@@ -43,7 +43,7 @@ static inline void _Encoder_DeltaD_Capture(const Encoder_T * p_encoder, Encoder_
 #if defined(CONFIG_ENCODER_HW_DECODER)
     /* For common interface functions. Emulated Capture in ISR */
     uint16_t counterD = HAL_Encoder_ReadCounter(p_encoder->P_HAL_ENCODER_COUNTER);
-    p_state->DeltaD = _Encoder_CaptureDeltaWrap(p_encoder->Config.CountsPerRevolution - 1U, p_state->CounterPrev, counterD);
+    p_state->DeltaD = _Encoder_CaptureDeltaWrap(p_encoder->P_NVM_CONFIG->CountsPerRevolution - 1U, p_state->CounterPrev, counterD);
     // p_state->TotalD += p_state->DeltaD;
     // quadrature check overflow flag
     /* Do not clear the counter as it is also the angle in this case */

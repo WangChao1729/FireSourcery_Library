@@ -102,7 +102,7 @@ NvMemory_Status_T MotNvm_SaveBootReg_Blocking(const MotNvm_T * p_motNvm)
 NvMemory_Status_T MotNvm_SaveConfigAll_Blocking(const MotNvm_T * p_motNvm)
 {
     const MotNvm_Entry_T * p_entry;
-    NvMemory_Status_T status;
+    NvMemory_Status_T status = 0;
 
     for (size_t i = 0U; i < p_motNvm->PARTITION_COUNT; i++)
     {
@@ -176,7 +176,7 @@ NvMemory_Status_T MotNvm_LoadBoardRefFrom(const MotNvm_T * p_motNvm, const struc
 
 NvMemory_Status_T MotNvm_LoadRef(const MotNvm_T * p_motNvm)
 {
-    struct HAL_Nvm_Manufacturer buffer;
+    struct HAL_Nvm_Manufacturer buffer = { 0 };
     NvMemory_Status_T status = MotNvm_ReadManufacture_Blocking(p_motNvm, (uintptr_t)0U, sizeof(struct HAL_Nvm_Manufacturer), &buffer);
     if (status == NV_MEMORY_STATUS_SUCCESS) { status = MotNvm_LoadBoardRefFrom(p_motNvm, &buffer); }
     if (status == NV_MEMORY_STATUS_SUCCESS) { status = MotNvm_LoadAnalogRefFrom(p_motNvm, &buffer); }
